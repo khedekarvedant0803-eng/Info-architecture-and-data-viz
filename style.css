@@ -1,0 +1,117 @@
+:root {
+  --bg: #f5efe6;
+  --surface: #fcf8f2;
+  --text: #1f1a16;
+  --muted: #6f655d;
+  --accent: #8b5e3c;
+  --border: rgba(31, 26, 22, 0.14);
+  --shadow: 0 16px 40px rgba(31, 26, 22, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  font-family: "Georgia", "Times New Roman", serif;
+  line-height: 1.6;
+  color: var(--text);
+  background: linear-gradient(135deg, #f8f2e8 0%, var(--bg) 100%);
+}
+
+img,
+iframe {
+  display: block;
+  max-width: 100%;
+}
+
+.editorial-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem 5rem;
+}
+
+.page-header {
+  padding: 2rem 0 2.5rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2rem;
+}
+
+.eyebrow {
+  font-size: 0.8rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 700;
+  margin-bottom: 0.6rem;
+}
+
+.page-header h1 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  margin-bottom: 0.8rem;
+}
+
+.lede {
+  max-width: 680px;
+  font-size: 1.05rem;
+  color: var(--muted);
+}
+
+.content-block {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2rem;
+  align-items: center;
+  margin-bottom: 2.2rem;
+  padding: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  box-shadow: var(--shadow);
+}
+
+.content-block--split {
+  grid-template-columns: 1.1fr 0.9fr;
+}
+
+.content-block__text h2 {
+  font-size: 1.35rem;
+  margin-bottom: 0.7rem;
+}
+
+.content-block__text p {
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+.content-block__media iframe,
+.content-block__media img {
+  width: 100%;
+  min-height: 280px;
+  border: 0;
+  border-radius: 0.95rem;
+  object-fit: cover;
+  background: #ece2d5;
+}
+
+@media (max-width: 760px) {
+  .editorial-page {
+    padding: 2rem 1rem 3rem;
+  }
+
+  .content-block,
+  .content-block--split {
+    grid-template-columns: 1fr;
+  }
+
+  .content-block__media iframe,
+  .content-block__media img {
+    min-height: 220px;
+  }
+}
