@@ -77,6 +77,146 @@
       fill: #f08d2a;
       stroke: #fff;
       stroke-width: 2;
+      pointer-events: none;
+      transition: opacity 0.16s ease;
+    }
+
+    .dot.active {
+      opacity: 0.95;
+    }
+
+    .hit-area {
+      fill: transparent;
+      cursor: pointer;
+    }
+
+    .highlight-dot {
+      fill: #ffb63f;
+      stroke: #ffffff;
+      stroke-width: 3;
+    }
+
+    .tooltip {
+      position: absolute;
+      min-width: 170px;
+      background: rgba(255, 255, 255, 0.98);
+      border: 1px solid rgba(200, 200, 200, 0.9);
+      border-radius: 12px;
+      padding: 12px 14px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+      pointer-events: none;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #242424;
+      opacity: 0;
+      transition: opacity 0.16s ease;
+      z-index: 10;
+    }
+
+    .tooltip.visible {
+      opacity: 1;
+    }
+
+    .tooltip-header {
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #d86d18;
+    }
+
+    .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #444;
+    }
+
+    .compare-toggle {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 22px;
+      font-size: 0.95rem;
+      color: #333;
+      user-select: none;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 52px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      cursor: pointer;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: #dddddd;
+      transition: background 0.22s ease;
+    }
+
+    .toggle-slider::after {
+      content: '';
+      position: absolute;
+      left: 4px;
+      top: 4px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: white;
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.12);
+      transition: transform 0.22s ease;
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+      background: #f08d2a;
+    }
+
+    .toggle-switch input:checked + .toggle-slider::after {
+      transform: translateX(24px);
+    }
+
+    .compare-note {
+      color: #555;
+      font-weight: 600;
+    }
+
+    .reggie-line {
+      fill: none;
+      stroke: #8b8b8b;
+      stroke-width: 3;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+
+    .reggie-dot {
+      fill: #8b8b8b;
+      stroke: #ffffff;
+      stroke-width: 1.5;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .hidden-series {
+      opacity: 0;
+    }
+
+    .reggie-line.visible,
+    .reggie-dot.visible {
+      opacity: 1;
     }
 
     .annotation {
@@ -100,103 +240,160 @@
       <svg viewBox="0 0 1000 520" aria-label="Dana Barros ranking chart">
         <g id="grid"></g>
         <g id="axes"></g>
+        <g id="reggie-line"></g>
         <g id="line"></g>
+        <g id="reggie-points"></g>
         <g id="points"></g>
         <g id="annotations"></g>
       </svg>
     </div>
+    <div class="compare-toggle">
+      <label class="toggle-switch">
+        <input type="checkbox" id="compareToggle" />
+        <span class="toggle-slider"></span>
+      </label>
+      <span class="compare-note">Compare to a star — see Reggie Miller’s career</span>
+    </div>
   </div>
 
-  <script>
-    const rawData = `name,year,rank
-Dana Barros,1990,191
-Dana Barros,1991,153
-Dana Barros,1992,125
-Dana Barros,1993,120
-Dana Barros,1994,92
-Dana Barros,1995,8
-Dana Barros,1996,98
-Dana Barros,1997,292
-Dana Barros,1998,103
-Dana Barros,1999,103
-Dana Barros,2000,295
-Dana Barros,2001,220
-Dana Barros,2002,368
-Dana Barros,2003,
-Dana Barros,2004,211`;
+        <script>
+    const rawData = `name,year,rank,stat_val,played_val
+Dana Barros,1990,191,0.0,81
+Dana Barros,1991,153,0.3,66
+Dana Barros,1992,125,0.6,75
+Dana Barros,1993,120,0.7,69
+Dana Barros,1994,92,1.2,81
+Dana Barros,1995,8,5.3,82
+Dana Barros,1996,98,1.3,80
+Dana Barros,1997,292,-0.1,24
+Dana Barros,1998,103,1.1,80
+Dana Barros,1999,103,0.7,50
+Dana Barros,2000,295,-0.1,72
+Dana Barros,2001,220,0.0,60
+Dana Barros,2002,368,-0.3,29
+Dana Barros,2003,,,
+Dana Barros,2004,211,0.0,1`;
 
-    const parsed = rawData.trim().split('\n').slice(1).map(line => {
-      const [name, year, rank] = line.split(',');
-      return {
-        name: name.trim(),
-        year: Number(year.trim()),
-        rank: rank.trim() ? Number(rank.trim()) : null
-      };
-    }).filter(d => d.name === 'Dana Barros' && d.rank !== null && d.year >= 1990 && d.year <= 2015);
+    const reggieRawData = `name,year,rank,stat_val,played_val
+Reggie Miller,1988,75,1.2,82
+Reggie Miller,1989,38,2.8,74
+Reggie Miller,1990,14,4.6,82
+Reggie Miller,1991,16,4.5,82
+Reggie Miller,1992,20,3.8,82
+Reggie Miller,1993,12,4.4,82
+Reggie Miller,1994,18,4.1,79
+Reggie Miller,1995,16,4.3,81
+Reggie Miller,1996,17,3.9,76
+Reggie Miller,1997,10,5.2,81
+Reggie Miller,1998,14,4.4,81
+Reggie Miller,1999,18,2.5,50
+Reggie Miller,2000,17,4.0,81
+Reggie Miller,2001,32,3.5,81
+Reggie Miller,2002,24,3.6,79
+Reggie Miller,2003,61,2.1,70
+Reggie Miller,2004,39,2.8,80
+Reggie Miller,2005,83,1.6,66`;
 
-    const years = [...Array(2015 - 1990 + 1)].map((_, idx) => 1990 + idx);
+    const minYear = 1985;
+    const maxYear = 2010;
     const svgWidth = 1000;
     const svgHeight = 520;
     const margin = { top: 30, right: 40, bottom: 50, left: 90 };
     const chartWidth = svgWidth - margin.left - margin.right;
     const chartHeight = svgHeight - margin.top - margin.bottom;
     const minRank = 20;
-    const maxRank = 320;
+    const maxRank = 400;
+    const xPadding = 28;
 
+    const parseSeries = raw => raw.trim().split('\n').slice(1).map(line => {
+      const [name, year, rank, stat_val, played_val] = line.split(',');
+      return {
+        name: name.trim(),
+        year: Number(year.trim()),
+        rank: rank.trim() ? Number(rank.trim()) : null,
+        vorp: stat_val.trim() ? stat_val.trim() : null,
+        games: played_val.trim() ? played_val.trim() : null
+      };
+    });
+
+    const barrosSeries = parseSeries(rawData).filter(d => d.name === 'Dana Barros' && d.rank !== null && d.year >= 1990 && d.year <= 2015);
+    const reggieSeries = parseSeries(reggieRawData).filter(d => d.name === 'Reggie Miller' && d.rank !== null && d.year >= minYear && d.year <= maxYear);
+    const years = Array.from({ length: maxYear - minYear + 1 }, (_, i) => minYear + i);
+
+    const yearToX = year => margin.left + xPadding + ((year - minYear) / (maxYear - minYear)) * (chartWidth - xPadding * 2);
     const rankToY = rank => {
       const clamped = Math.min(maxRank, Math.max(minRank, rank));
       return margin.top + ((clamped - minRank) / (maxRank - minRank)) * chartHeight;
     };
 
-    const yearToX = year => {
-      return margin.left + ((year - 1990) / (2015 - 1990)) * chartWidth;
-    };
-
     const svg = document.querySelector('svg');
     const grid = document.getElementById('grid');
     const axes = document.getElementById('axes');
+    const reggieLineGroup = document.getElementById('reggie-line');
     const lineGroup = document.getElementById('line');
+    const reggiePointsGroup = document.getElementById('reggie-points');
     const pointsGroup = document.getElementById('points');
-    const annotationsGroup = document.getElementById('annotations');
+    const compareToggle = document.getElementById('compareToggle');
 
-    const rankTicks = [300, 250, 200, 150, 100, 50, 20];
+    const rankTicks = [400, 350, 300, 250, 200, 150, 100, 50, 20];
     rankTicks.forEach(rank => {
       const y = rankToY(rank);
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      line.setAttribute('x1', margin.left);
-      line.setAttribute('y1', y);
-      line.setAttribute('x2', svgWidth - margin.right);
-      line.setAttribute('y2', y);
-      line.setAttribute('class', 'grid-line');
-      grid.appendChild(line);
+      const gridLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      gridLine.setAttribute('x1', margin.left + xPadding);
+      gridLine.setAttribute('y1', y);
+      gridLine.setAttribute('x2', svgWidth - margin.right - xPadding);
+      gridLine.setAttribute('y2', y);
+      gridLine.setAttribute('class', 'grid-line');
+      grid.appendChild(gridLine);
 
       const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      label.setAttribute('x', margin.left - 16);
+      label.setAttribute('x', margin.left - 18);
       label.setAttribute('y', y + 4);
       label.setAttribute('text-anchor', 'end');
       label.setAttribute('class', 'rank-label');
-      label.textContent = rank === 300 ? '300+' : rank;
+      label.textContent = rank;
       grid.appendChild(label);
     });
 
+    const medianRank = 153;
+    const medianY = rankToY(medianRank);
+    const medianLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    medianLine.setAttribute('x1', margin.left + xPadding);
+    medianLine.setAttribute('y1', medianY);
+    medianLine.setAttribute('x2', svgWidth - margin.right - xPadding);
+    medianLine.setAttribute('y2', medianY);
+    medianLine.setAttribute('stroke', '#444');
+    medianLine.setAttribute('stroke-width', 2);
+    medianLine.setAttribute('stroke-dasharray', '8 6');
+    axes.appendChild(medianLine);
+
+    const medianLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    medianLabel.setAttribute('x', svgWidth - margin.right - xPadding - 10);
+    medianLabel.setAttribute('y', medianY - 10);
+    medianLabel.setAttribute('text-anchor', 'end');
+    medianLabel.setAttribute('class', 'rank-label');
+    medianLabel.setAttribute('font-weight', '700');
+    medianLabel.textContent = 'MEDIAN: 153rd';
+    axes.appendChild(medianLabel);
+
     const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    xAxis.setAttribute('x1', margin.left);
+    xAxis.setAttribute('x1', margin.left + xPadding);
     xAxis.setAttribute('y1', svgHeight - margin.bottom);
-    xAxis.setAttribute('x2', svgWidth - margin.right);
+    xAxis.setAttribute('x2', svgWidth - margin.right - xPadding);
     xAxis.setAttribute('y2', svgHeight - margin.bottom);
     xAxis.setAttribute('class', 'axis-line');
     axes.appendChild(xAxis);
 
     const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    yAxis.setAttribute('x1', margin.left);
+    yAxis.setAttribute('x1', margin.left + xPadding);
     yAxis.setAttribute('y1', margin.top);
-    yAxis.setAttribute('x2', margin.left);
+    yAxis.setAttribute('x2', margin.left + xPadding);
     yAxis.setAttribute('y2', svgHeight - margin.bottom);
     yAxis.setAttribute('class', 'axis-line');
     axes.appendChild(yAxis);
 
     years.forEach(year => {
-      if (year % 5 === 0 || year === 1990 || year === 2015) {
+      if (year % 5 === 0) {
         const x = yearToX(year);
         const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         tick.setAttribute('x1', x);
@@ -217,69 +414,102 @@ Dana Barros,2004,211`;
       }
     });
 
-    const sortedData = parsed.sort((a, b) => a.year - b.year);
-    const points = sortedData.map(d => ({ x: yearToX(d.year), y: rankToY(d.rank), year: d.year, rank: d.rank }));
+    const buildSeries = (data, groupLine, groupPoints, lineClass, pointClass, pointRadius, hiddenInitially = false) => {
+      const sorted = data.slice().sort((a, b) => a.year - b.year);
+      const points = sorted.map(d => ({ x: yearToX(d.year), y: rankToY(d.rank), ...d }));
+      const pathParts = [];
+      points.forEach((point, idx) => {
+        if (idx === 0) {
+          pathParts.push(`M ${point.x} ${point.y}`);
+        } else {
+          const prev = points[idx - 1];
+          pathParts.push(`L ${prev.x} ${point.y}`);
+          pathParts.push(`L ${point.x} ${point.y}`);
+        }
+      });
 
-    const pathParts = [];
-    points.forEach((point, idx) => {
-      if (idx === 0) {
-        pathParts.push(`M ${point.x} ${point.y}`);
-      } else {
-        const prev = points[idx - 1];
-        pathParts.push(`L ${point.x} ${prev.y}`);
-        pathParts.push(`L ${point.x} ${point.y}`);
-      }
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', pathParts.join(' '));
+      path.setAttribute('class', `${lineClass}${hiddenInitially ? ' hidden-series' : ''}`);
+      groupLine.appendChild(path);
+
+      return points.map(point => {
+        const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        dot.setAttribute('cx', point.x);
+        dot.setAttribute('cy', point.y);
+        dot.setAttribute('r', pointRadius);
+        dot.setAttribute('class', `${pointClass}${hiddenInitially ? ' hidden-series' : ''}`);
+        groupPoints.appendChild(dot);
+        return { point, dot };
+      });
+    };
+
+    const barrosPoints = buildSeries(barrosSeries, lineGroup, pointsGroup, 'step-line', 'dot', 6);
+    const reggiePoints = buildSeries(reggieSeries, reggieLineGroup, reggiePointsGroup, 'reggie-line', 'reggie-dot', 4, true);
+
+    const tooltip = document.createElement('div');
+    tooltip.className = 'tooltip';
+    tooltip.innerHTML = `<div class="tooltip-header"></div>
+                         <div class="tooltip-row"><span>RANK</span><strong class="tooltip-rank"></strong></div>
+                         <div class="tooltip-row"><span>VORP</span><strong class="tooltip-vorp"></strong></div>
+                         <div class="tooltip-row"><span>GAMES</span><strong class="tooltip-games"></strong></div>`;
+    document.body.appendChild(tooltip);
+
+    const showTooltip = (event, point) => {
+      tooltip.querySelector('.tooltip-header').textContent = point.year;
+      tooltip.querySelector('.tooltip-rank').textContent = point.rank;
+      tooltip.querySelector('.tooltip-vorp').textContent = point.vorp || '—';
+      tooltip.querySelector('.tooltip-games').textContent = point.games || '—';
+      tooltip.style.left = `${event.clientX + 14}px`;
+      tooltip.style.top = `${event.clientY - 20}px`;
+      tooltip.classList.add('visible');
+    };
+
+    const hideTooltip = () => tooltip.classList.remove('visible');
+
+    const bestBarros = barrosPoints.reduce((best, item) => {
+      if (item.point.rank <= 20 && (!best || item.point.rank < best.point.rank)) return item;
+      return best;
+    }, null);
+
+    barrosPoints.forEach(({ point, dot }) => {
+      const isHighlight = bestBarros && point.year === bestBarros.point.year;
+      const radius = isHighlight ? 9 : 6;
+      dot.setAttribute('r', radius);
+      dot.setAttribute('class', isHighlight ? 'dot highlight-dot' : 'dot');
+
+      const hit = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      hit.setAttribute('cx', point.x);
+      hit.setAttribute('cy', point.y);
+      hit.setAttribute('r', 12);
+      hit.setAttribute('class', 'hit-area');
+      pointsGroup.appendChild(hit);
+
+      hit.addEventListener('mouseenter', event => {
+        dot.setAttribute('r', radius + 2);
+        showTooltip(event, point);
+      });
+      hit.addEventListener('mousemove', event => showTooltip(event, point));
+      hit.addEventListener('mouseleave', () => {
+        dot.setAttribute('r', radius);
+        hideTooltip();
+      });
     });
 
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', pathParts.join(' '));
-    path.setAttribute('class', 'step-line');
-    lineGroup.appendChild(path);
-
-    points.forEach(point => {
-      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      dot.setAttribute('cx', point.x);
-      dot.setAttribute('cy', point.y);
-      dot.setAttribute('r', 6);
-      dot.setAttribute('class', 'dot');
-      pointsGroup.appendChild(dot);
+    compareToggle.addEventListener('change', event => {
+      const show = event.target.checked;
+      reggieLineGroup.querySelectorAll('path').forEach(path => path.classList.toggle('visible', show));
+      reggiePointsGroup.querySelectorAll('circle').forEach(dot => dot.classList.toggle('visible', show));
     });
 
     const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    title.setAttribute('x', margin.left);
+    title.setAttribute('x', margin.left + xPadding);
     title.setAttribute('y', margin.top - 10);
     title.setAttribute('class', 'year-label');
     title.setAttribute('font-size', '14');
     title.setAttribute('font-weight', '700');
-    title.textContent = 'NBA ranking axis is inverted: 300+ at bottom, 20 near top.';
+    title.textContent = 'NBA ranking axis is inverted: 400 at bottom, 20 near top.';
     svg.appendChild(title);
-
-    const annotation = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    const box = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    box.setAttribute('x', 660);
-    box.setAttribute('y', 70);
-    box.setAttribute('width', 290);
-    box.setAttribute('height', 90);
-    box.setAttribute('rx', 10);
-    box.setAttribute('class', 'annotation-box');
-    annotation.appendChild(box);
-
-    const a1 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    a1.setAttribute('x', 676);
-    a1.setAttribute('y', 98);
-    a1.setAttribute('class', 'annotation');
-    a1.setAttribute('font-weight', '700');
-    a1.textContent = '1995 — Peak ranking 8';
-    annotation.appendChild(a1);
-
-    const a2 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    a2.setAttribute('x', 676);
-    a2.setAttribute('y', 118);
-    a2.setAttribute('class', 'annotation');
-    a2.textContent = 'Rank is lower value at the top of the chart.';
-    annotation.appendChild(a2);
-
-    annotationsGroup.appendChild(annotation);
   </script>
 </body>
 </html>
