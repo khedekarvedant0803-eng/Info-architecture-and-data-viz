@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sci-Fi Unit Chart</title>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 24px;
+        background: #fffafc;
+        color: #2f2f2f;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        margin-bottom: 8px;
+      }
+
+      .subtitle {
+        margin-bottom: 20px;
+        color: #666;
+      }
+
+      #chart,
+      #chart2 {
+        width: 100%;
+        height: 640px;
+        border: 1px solid #f0dce6;
+        border-radius: 12px;
+        background: white;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Sci-Fi Movie Unit Chart</h1>
+      <p class="subtitle">
+        1950-era movies mapped as a compact 10×20 pink unit chart. Scroll to see a second era-sorted frame.
+      </p>
+      <div id="chart"></div>
+    </div>
+
+    <div class="container" style="margin-top: 40px;">
+      <h2>Era-Sorted View</h2>
+      <p class="subtitle">
+        Same 1950s movies sorted by era with `App_Era_exp` shown in the tooltip.
+      </p>
+      <div id="chart2"></div>
+    </div>
+
+    <script>
+      function parseCsv(text) {
+        const rows = [];
+        let row = [];
+        let value = '';
+        let inQuotes = false;
+
+        for (let i = 0; i < text.length; i += 1) {
+          const char = text[i];
+          const next = text[i + 1];
+
+          if (char === '"') {
+            if (inQuotes && next === '"') {
+              value += '"';
+              i += 1;
+            } else {
+              inQuotes = !inQuotes;
+            }
+          } else if (char === ',' && !inQuotes) {
+            row.push(value);
+            value = '';
+          } else if ((char === '\n' || char === '\r') && !inQuotes) {
+            if (char === '\r' && next === '\n') {
+              i += 1;
+            }
+            row.push(value);
+            if (row.some((cell) => cell !== '')) {
+              rows.push(row);
+            }
+            row = [];
+            value = '';
+          } else {
+            value += char;
+          }
+        }
+
+        if (value.length > 0 || row.length > 0) {
+          row.push(value);
+          if (row.some((cell) => cell !== '')) {
+            rows.push(row);
+          }
+        }
+
+        const headers = rows[0] || [];
+        return rows.slice(1).map((cells) => {
+          const rowObj = {};
+          headers.forEach((header, index) => {
+            rowObj[header] = cells[index] || '';
+          });
+          return rowObj;
+        });
+      }
+
+      function extractYear(value) {
+        if (!value) {
+          return null;
+        }
+        const match = value.match(/(\d{4})/);
+        return match ? Number(match[1]) : null;
+      }
+
+      async function loadCsv() {
+        const csvPath = './scifi%20-%20scifi_dataset.csv';
+        const response = await fetch(csvPath);
+        if (!response.ok) {
+          throw new Error(`Could not load CSV: ${response.status}`);
+        }
+
+        const text = await response.text();
+        return parseCsv(text);
+      }
+
+      function getEraInfo(row) {
+        const eraRaw = (row.APP_Era || row.Era || '').trim().toLowerCase();
+        const era = eraRaw || 'multiple/other';
+        const mapping = {
+          present: { label: 'Present', color: '#ff69b4' },
+          future: { label: 'Future', color: '#4b8bf5' },
+          past: { label: 'Past', color: '#7c4dff' },
+          'multiple/other': { label: 'Multiple/Other', color: '#f5a623' },
+        };
+        return mapping[era] || mapping['multiple/other'];
+      }
+
+      function buildCells(rows) {
+        const filtered = rows.filter((row) => {
+          const year = extractYear(row.title_year || row.year || row.first_year || '');
+          return year >= 1950 && year <= 1959;
+        });
+
+        const columns = 10;
+        const cells = filtered.map((row, index) => {
+          const x = index % columns;
+          const y = Math.floor(index / columns);
+          const title = (row.title_year || '').replace(/\s*\(\d{4}\)\s*$/, '');
+          const year = extractYear(row.title_year || row.year || row.first_year || '');
+          const eraInfo = getEraInfo(row);
+
+          return {
+            x,
+            y,
+            title: title || 'Unknown',
+            year: year || 'N/A',
+            eraLabel: eraInfo.label,
+            eraColor: eraInfo.color,
+          };
+        });
+
+        return { filtered, cells };
+      }
+
+      function buildSortedCells(rows) {
+        const filtered = rows
+          .filter((row) => {
+            const year = extractYear(row.title_year || row.year || row.first_year || '');
+            return year >= 1950 && year <= 1959;
+          })
+          .sort((a, b) => {
+            const eraA = (a.APP_Era || a.Era || '').toLowerCase();
+            const eraB = (b.APP_Era || b.Era || '').toLowerCase();
+            if (eraA < eraB) return -1;
+            if (eraA > eraB) return 1;
+            return 0;
+          });
+
+        const columns = 10;
+        const cells = filtered.map((row, index) => {
+          const x = index % columns;
+          const y = Math.floor(index / columns);
+          const title = (row.title_year || '').replace(/\s*\(\d{4}\)\s*$/, '');
+          const year = extractYear(row.title_year || row.year || row.first_year || '');
+          const eraExp = row.APP_Era_exp || 'No era description';
+          const eraInfo = getEraInfo(row);
+
+          return {
+            x,
+            y,
+            title: title || 'Unknown',
+            year: year || 'N/A',
+            eraExp,
+            eraLabel: eraInfo.label,
+            eraColor: eraInfo.color,
+          };
+        });
+
+        return { filtered, cells };
+      }
+
+      async function renderChart() {
+        try {
+          const rows = await loadCsv();
+          const { filtered, cells } = buildCells(rows);
+
+          const trace = {
+            type: 'scatter',
+            mode: 'markers',
+            x: cells.map((cell) => cell.x),
+            y: cells.map((cell) => cell.y),
+            marker: {
+              symbol: 'square',
+              size: 30,
+              color: '#ff69b4',
+              line: {
+                color: '#fffafc',
+                width: 2,
+              },
+            },
+            text: cells.map((cell) => `Movie: ${cell.title}<br>Year: ${cell.year}`),
+            hovertemplate: '%{text}<extra></extra>',
+          };
+
+          const layout = {
+            title: {
+              text: `1950s Sci-Fi Movies (${filtered.length})`,
+              x: 0.05,
+              font: { size: 20 },
+            },
+            xaxis: {
+              showgrid: false,
+              zeroline: false,
+              ticks: '',
+              showticklabels: false,
+              range: [-0.5, 9.5],
+            },
+            yaxis: {
+              showgrid: false,
+              zeroline: false,
+              ticks: '',
+              showticklabels: false,
+              range: [-0.5, 19.5],
+              scaleanchor: 'x',
+              scaleratio: 1,
+            },
+            margin: { t: 60, r: 20, b: 20, l: 20 },
+            paper_bgcolor: '#fffafc',
+            plot_bgcolor: '#fffafc',
+          };
+
+          Plotly.newPlot('chart', [trace], layout, { responsive: true });
+        } catch (error) {
+          document.getElementById('chart').innerHTML = `<p style="padding: 20px; color: #c0392b;">${error.message}</p>`;
+        }
+      }
+
+      async function renderChart2() {
+        try {
+          const rows = await loadCsv();
+          const { filtered, cells } = buildSortedCells(rows);
+
+          const trace = {
+            type: 'scatter',
+            mode: 'markers',
+            x: cells.map((cell) => cell.x),
+            y: cells.map((cell) => cell.y),
+            marker: {
+              symbol: 'square',
+              size: 30,
+              color: cells.map((cell) => cell.eraColor),
+              line: {
+                color: '#fffafc',
+                width: 2,
+              },
+            },
+            text: cells.map((cell) => `Movie: ${cell.title}<br>Year: ${cell.year}<br>Era: ${cell.eraLabel}<br>${cell.eraExp}`),
+            hovertemplate: '%{text}<extra></extra>',
+          };
+
+          const layout = {
+            title: {
+              text: `1950s Sci-Fi Movies Sorted by Era (${filtered.length})`,
+              x: 0.05,
+              font: { size: 20 },
+            },
+            xaxis: {
+              showgrid: false,
+              zeroline: false,
+              ticks: '',
+              showticklabels: false,
+              range: [-0.5, 9.5],
+            },
+            yaxis: {
+              showgrid: false,
+              zeroline: false,
+              ticks: '',
+              showticklabels: false,
+              range: [-0.5, 19.5],
+              scaleanchor: 'x',
+              scaleratio: 1,
+            },
+            margin: { t: 60, r: 20, b: 20, l: 20 },
+            paper_bgcolor: '#fffafc',
+            plot_bgcolor: '#fffafc',
+          };
+
+          Plotly.newPlot('chart2', [trace], layout, { responsive: true });
+        } catch (error) {
+          document.getElementById('chart2').innerHTML = `<p style="padding: 20px; color: #c0392b;">${error.message}</p>`;
+        }
+      }
+
+      renderChart();
+      renderChart2();
+    </script>
+  </body>
+</html>
