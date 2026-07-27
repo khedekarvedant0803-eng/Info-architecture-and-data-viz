@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dana Barros NBA Ranking Timeline</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #333;
+      background: #f7f7f7;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .chart-card {
+      width: min(1000px, 100%);
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 18px 50px rgba(20, 30, 50, 0.12);
+      padding: 24px;
+    }
+
+    h1 {
+      margin: 0 0 14px;
+      font-size: 1.9rem;
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle {
+      margin: 0 0 24px;
+      color: #666;
+      line-height: 1.6;
+    }
+
+    .chart-wrapper {
+      position: relative;
+    }
+
+    svg {
+      width: 100%;
+      height: auto;
+      display: block;
+      overflow: visible;
+    }
+
+    .axis-line {
+      stroke: #444;
+      stroke-width: 1.25;
+    }
+
+    .grid-line {
+      stroke: #d9d9d9;
+      stroke-width: 1;
+      stroke-dasharray: 6 6;
+    }
+
+    .rank-label,
+    .year-label {
+      fill: #555;
+      font-size: 12px;
+    }
+
+    .step-line {
+      fill: none;
+      stroke: #f08d2a;
+      stroke-width: 4;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+    }
+
+    .dot {
+      fill: #f08d2a;
+      stroke: #fff;
+      stroke-width: 2;
+    }
+
+    .annotation {
+      fill: #333;
+      font-size: 13px;
+    }
+
+    .annotation-box {
+      fill: rgba(255,255,255,0.92);
+      stroke: #ddd;
+      stroke-width: 1;
+      filter: drop-shadow(0 5px 18px rgba(0,0,0,0.08));
+    }
+  </style>
+</head>
+<body>
+  <div class="chart-card">
+    <h1>Dana Barros NBA Ranking (1990–2015)</h1>
+    <p class="subtitle">Step-curve ranking timeline for Dana Barros using `name`, `year`, and `rank` values from the dataset.</p>
+    <div class="chart-wrapper">
+      <svg viewBox="0 0 1000 520" aria-label="Dana Barros ranking chart">
+        <g id="grid"></g>
+        <g id="axes"></g>
+        <g id="line"></g>
+        <g id="points"></g>
+        <g id="annotations"></g>
+      </svg>
+    </div>
+  </div>
+
+  <script>
+    const rawData = `name,year,rank
+Dana Barros,1990,191
+Dana Barros,1991,153
+Dana Barros,1992,125
+Dana Barros,1993,120
+Dana Barros,1994,92
+Dana Barros,1995,8
+Dana Barros,1996,98
+Dana Barros,1997,292
+Dana Barros,1998,103
+Dana Barros,1999,103
+Dana Barros,2000,295
+Dana Barros,2001,220
+Dana Barros,2002,368
+Dana Barros,2003,
+Dana Barros,2004,211`;
+
+    const parsed = rawData.trim().split('\n').slice(1).map(line => {
+      const [name, year, rank] = line.split(',');
+      return {
+        name: name.trim(),
+        year: Number(year.trim()),
+        rank: rank.trim() ? Number(rank.trim()) : null
+      };
+    }).filter(d => d.name === 'Dana Barros' && d.rank !== null && d.year >= 1990 && d.year <= 2015);
+
+    const years = [...Array(2015 - 1990 + 1)].map((_, idx) => 1990 + idx);
+    const svgWidth = 1000;
+    const svgHeight = 520;
+    const margin = { top: 30, right: 40, bottom: 50, left: 90 };
+    const chartWidth = svgWidth - margin.left - margin.right;
+    const chartHeight = svgHeight - margin.top - margin.bottom;
+    const minRank = 20;
+    const maxRank = 320;
+
+    const rankToY = rank => {
+      const clamped = Math.min(maxRank, Math.max(minRank, rank));
+      return margin.top + ((clamped - minRank) / (maxRank - minRank)) * chartHeight;
+    };
+
+    const yearToX = year => {
+      return margin.left + ((year - 1990) / (2015 - 1990)) * chartWidth;
+    };
+
+    const svg = document.querySelector('svg');
+    const grid = document.getElementById('grid');
+    const axes = document.getElementById('axes');
+    const lineGroup = document.getElementById('line');
+    const pointsGroup = document.getElementById('points');
+    const annotationsGroup = document.getElementById('annotations');
+
+    const rankTicks = [300, 250, 200, 150, 100, 50, 20];
+    rankTicks.forEach(rank => {
+      const y = rankToY(rank);
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', margin.left);
+      line.setAttribute('y1', y);
+      line.setAttribute('x2', svgWidth - margin.right);
+      line.setAttribute('y2', y);
+      line.setAttribute('class', 'grid-line');
+      grid.appendChild(line);
+
+      const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      label.setAttribute('x', margin.left - 16);
+      label.setAttribute('y', y + 4);
+      label.setAttribute('text-anchor', 'end');
+      label.setAttribute('class', 'rank-label');
+      label.textContent = rank === 300 ? '300+' : rank;
+      grid.appendChild(label);
+    });
+
+    const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    xAxis.setAttribute('x1', margin.left);
+    xAxis.setAttribute('y1', svgHeight - margin.bottom);
+    xAxis.setAttribute('x2', svgWidth - margin.right);
+    xAxis.setAttribute('y2', svgHeight - margin.bottom);
+    xAxis.setAttribute('class', 'axis-line');
+    axes.appendChild(xAxis);
+
+    const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    yAxis.setAttribute('x1', margin.left);
+    yAxis.setAttribute('y1', margin.top);
+    yAxis.setAttribute('x2', margin.left);
+    yAxis.setAttribute('y2', svgHeight - margin.bottom);
+    yAxis.setAttribute('class', 'axis-line');
+    axes.appendChild(yAxis);
+
+    years.forEach(year => {
+      if (year % 5 === 0 || year === 1990 || year === 2015) {
+        const x = yearToX(year);
+        const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        tick.setAttribute('x1', x);
+        tick.setAttribute('y1', svgHeight - margin.bottom);
+        tick.setAttribute('x2', x);
+        tick.setAttribute('y2', svgHeight - margin.bottom + 8);
+        tick.setAttribute('stroke', '#444');
+        tick.setAttribute('stroke-width', 1);
+        axes.appendChild(tick);
+
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', x);
+        label.setAttribute('y', svgHeight - margin.bottom + 26);
+        label.setAttribute('text-anchor', 'middle');
+        label.setAttribute('class', 'year-label');
+        label.textContent = year;
+        axes.appendChild(label);
+      }
+    });
+
+    const sortedData = parsed.sort((a, b) => a.year - b.year);
+    const points = sortedData.map(d => ({ x: yearToX(d.year), y: rankToY(d.rank), year: d.year, rank: d.rank }));
+
+    const pathParts = [];
+    points.forEach((point, idx) => {
+      if (idx === 0) {
+        pathParts.push(`M ${point.x} ${point.y}`);
+      } else {
+        const prev = points[idx - 1];
+        pathParts.push(`L ${point.x} ${prev.y}`);
+        pathParts.push(`L ${point.x} ${point.y}`);
+      }
+    });
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', pathParts.join(' '));
+    path.setAttribute('class', 'step-line');
+    lineGroup.appendChild(path);
+
+    points.forEach(point => {
+      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      dot.setAttribute('cx', point.x);
+      dot.setAttribute('cy', point.y);
+      dot.setAttribute('r', 6);
+      dot.setAttribute('class', 'dot');
+      pointsGroup.appendChild(dot);
+    });
+
+    const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    title.setAttribute('x', margin.left);
+    title.setAttribute('y', margin.top - 10);
+    title.setAttribute('class', 'year-label');
+    title.setAttribute('font-size', '14');
+    title.setAttribute('font-weight', '700');
+    title.textContent = 'NBA ranking axis is inverted: 300+ at bottom, 20 near top.';
+    svg.appendChild(title);
+
+    const annotation = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const box = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    box.setAttribute('x', 660);
+    box.setAttribute('y', 70);
+    box.setAttribute('width', 290);
+    box.setAttribute('height', 90);
+    box.setAttribute('rx', 10);
+    box.setAttribute('class', 'annotation-box');
+    annotation.appendChild(box);
+
+    const a1 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    a1.setAttribute('x', 676);
+    a1.setAttribute('y', 98);
+    a1.setAttribute('class', 'annotation');
+    a1.setAttribute('font-weight', '700');
+    a1.textContent = '1995 — Peak ranking 8';
+    annotation.appendChild(a1);
+
+    const a2 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    a2.setAttribute('x', 676);
+    a2.setAttribute('y', 118);
+    a2.setAttribute('class', 'annotation');
+    a2.textContent = 'Rank is lower value at the top of the chart.';
+    annotation.appendChild(a2);
+
+    annotationsGroup.appendChild(annotation);
+  </script>
+</body>
+</html>
