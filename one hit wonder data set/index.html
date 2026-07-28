@@ -11,10 +11,12 @@
       color: #333;
       background: #f7f7f7;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
       align-items: center;
+      justify-content: flex-start;
       min-height: 100vh;
-      padding: 24px;
+      padding: 24px 24px 48px;
+      overflow-x: hidden;
     }
 
     .chart-card {
@@ -23,6 +25,7 @@
       border-radius: 16px;
       box-shadow: 0 18px 50px rgba(20, 30, 50, 0.12);
       padding: 24px;
+      margin-bottom: 24px;
     }
 
     h1 {
@@ -130,6 +133,10 @@
       color: #444;
     }
 
+    .second-card {
+      margin-top: 8px;
+    }
+
     .compare-toggle {
       display: flex;
       align-items: center;
@@ -219,6 +226,13 @@
       opacity: 1;
     }
 
+    code {
+      font-family: Consolas, monospace;
+      background: #f4f4f4;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+
     .annotation {
       fill: #333;
       font-size: 13px;
@@ -237,7 +251,7 @@
     <h1>Dana Barros NBA Ranking (1990–2015)</h1>
     <p class="subtitle">Step-curve ranking timeline for Dana Barros using `name`, `year`, and `rank` values from the dataset.</p>
     <div class="chart-wrapper">
-      <svg viewBox="0 0 1000 520" aria-label="Dana Barros ranking chart">
+      <svg id="chart-one" viewBox="0 0 1000 520" aria-label="Dana Barros ranking chart">
         <g id="grid"></g>
         <g id="axes"></g>
         <g id="reggie-line"></g>
@@ -253,6 +267,21 @@
         <span class="toggle-slider"></span>
       </label>
       <span class="compare-note">Compare to a star — see Reggie Miller’s career</span>
+    </div>
+  </div>
+
+  <div class="chart-card second-card">
+    <h1>Dana Barros NBA Ranking (1990–2015)</h1>
+    <p class="subtitle">Step-curve ranking timeline for Dana Barros using <code>name</code>, <code>year</code>, and <code>rank</code> values from the dataset.</p>
+    <div class="chart-wrapper">
+      <svg id="chart-two" viewBox="0 0 1000 520" aria-label="Scroll-reveal comparison chart">
+        <g id="grid-2"></g>
+        <g id="axes-2"></g>
+        <g id="reggie-line-2"></g>
+        <g id="line-2"></g>
+        <g id="reggie-points-2"></g>
+        <g id="points-2"></g>
+      </svg>
     </div>
   </div>
 
@@ -326,7 +355,7 @@ Reggie Miller,2005,83,1.6,66`;
       return margin.top + ((clamped - minRank) / (maxRank - minRank)) * chartHeight;
     };
 
-    const svg = document.querySelector('svg');
+    const svg = document.getElementById('chart-one');
     const grid = document.getElementById('grid');
     const axes = document.getElementById('axes');
     const reggieLineGroup = document.getElementById('reggie-line');
@@ -510,6 +539,123 @@ Reggie Miller,2005,83,1.6,66`;
     title.setAttribute('font-weight', '700');
     title.textContent = 'NBA ranking axis is inverted: 400 at bottom, 20 near top.';
     svg.appendChild(title);
+
+    const secondSvg = document.getElementById('chart-two');
+    const secondGrid = document.getElementById('grid-2');
+    const secondAxes = document.getElementById('axes-2');
+    const secondReggieLineGroup = document.getElementById('reggie-line-2');
+    const secondLineGroup = document.getElementById('line-2');
+    const secondReggiePointsGroup = document.getElementById('reggie-points-2');
+    const secondPointsGroup = document.getElementById('points-2');
+    const secondCard = document.querySelector('.second-card');
+
+    rankTicks.forEach(rank => {
+      const y = rankToY(rank);
+      const gridLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      gridLine.setAttribute('x1', margin.left + xPadding);
+      gridLine.setAttribute('y1', y);
+      gridLine.setAttribute('x2', svgWidth - margin.right - xPadding);
+      gridLine.setAttribute('y2', y);
+      gridLine.setAttribute('class', 'grid-line');
+      secondGrid.appendChild(gridLine);
+
+      const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      label.setAttribute('x', margin.left - 18);
+      label.setAttribute('y', y + 4);
+      label.setAttribute('text-anchor', 'end');
+      label.setAttribute('class', 'rank-label');
+      label.textContent = rank;
+      secondGrid.appendChild(label);
+    });
+
+    const secondMedianY = rankToY(medianRank);
+    const secondMedianLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    secondMedianLine.setAttribute('x1', margin.left + xPadding);
+    secondMedianLine.setAttribute('y1', secondMedianY);
+    secondMedianLine.setAttribute('x2', svgWidth - margin.right - xPadding);
+    secondMedianLine.setAttribute('y2', secondMedianY);
+    secondMedianLine.setAttribute('stroke', '#444');
+    secondMedianLine.setAttribute('stroke-width', 2);
+    secondMedianLine.setAttribute('stroke-dasharray', '8 6');
+    secondAxes.appendChild(secondMedianLine);
+
+    const secondMedianLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    secondMedianLabel.setAttribute('x', svgWidth - margin.right - xPadding - 10);
+    secondMedianLabel.setAttribute('y', secondMedianY - 10);
+    secondMedianLabel.setAttribute('text-anchor', 'end');
+    secondMedianLabel.setAttribute('class', 'rank-label');
+    secondMedianLabel.setAttribute('font-weight', '700');
+    secondMedianLabel.textContent = 'MEDIAN: 153rd';
+    secondAxes.appendChild(secondMedianLabel);
+
+    const secondXAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    secondXAxis.setAttribute('x1', margin.left + xPadding);
+    secondXAxis.setAttribute('y1', svgHeight - margin.bottom);
+    secondXAxis.setAttribute('x2', svgWidth - margin.right - xPadding);
+    secondXAxis.setAttribute('y2', svgHeight - margin.bottom);
+    secondXAxis.setAttribute('class', 'axis-line');
+    secondAxes.appendChild(secondXAxis);
+
+    const secondYAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    secondYAxis.setAttribute('x1', margin.left + xPadding);
+    secondYAxis.setAttribute('y1', margin.top);
+    secondYAxis.setAttribute('x2', margin.left + xPadding);
+    secondYAxis.setAttribute('y2', svgHeight - margin.bottom);
+    secondYAxis.setAttribute('class', 'axis-line');
+    secondAxes.appendChild(secondYAxis);
+
+    years.forEach(year => {
+      if (year % 5 === 0) {
+        const x = yearToX(year);
+        const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        tick.setAttribute('x1', x);
+        tick.setAttribute('y1', svgHeight - margin.bottom);
+        tick.setAttribute('x2', x);
+        tick.setAttribute('y2', svgHeight - margin.bottom + 8);
+        tick.setAttribute('stroke', '#444');
+        tick.setAttribute('stroke-width', 1);
+        secondAxes.appendChild(tick);
+
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', x);
+        label.setAttribute('y', svgHeight - margin.bottom + 26);
+        label.setAttribute('text-anchor', 'middle');
+        label.setAttribute('class', 'year-label');
+        label.textContent = year;
+        secondAxes.appendChild(label);
+      }
+    });
+
+    buildSeries(barrosSeries, secondLineGroup, secondPointsGroup, 'step-line', 'dot', 6);
+    buildSeries(reggieSeries, secondReggieLineGroup, secondReggiePointsGroup, 'reggie-line', 'reggie-dot', 4, true);
+
+    const secondReggieElements = [
+      ...secondReggieLineGroup.querySelectorAll('path'),
+      ...secondReggiePointsGroup.querySelectorAll('circle')
+    ];
+
+    const updateSecondReveal = () => {
+      const cardTop = secondCard.getBoundingClientRect().top;
+      const viewportHeight = window.innerHeight;
+      const cardHeight = secondCard.offsetHeight;
+      const start = viewportHeight - cardHeight;
+      const end = 0;
+
+      let opacity = 0;
+      if (cardTop <= end) {
+        opacity = 1;
+      } else if (cardTop < start) {
+        opacity = (start - cardTop) / (start - end);
+      }
+
+      secondReggieElements.forEach(element => {
+        element.style.opacity = opacity;
+      });
+    };
+
+    window.addEventListener('scroll', updateSecondReveal, { passive: true });
+    window.addEventListener('resize', updateSecondReveal);
+    updateSecondReveal();
   </script>
 </body>
 </html>
