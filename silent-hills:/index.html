@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Silent Hills Prototype</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #e8ede9;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+    
+    #app {
+      width: 100%;
+      max-width: 1005px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    #screen {
+  width: 100%;
+  aspect-ratio: 961 / 549;
+  border: 2px solid #555;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+
+    .screen-bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: opacity 0.4s ease;
+      opacity: 0;
+    }
+    .screen-bg.active {
+      opacity: 1;
+    }
+    .decay-bg {
+      transition: opacity 1.8s ease;
+      z-index: 2;
+    }
+
+    #initial-landscape {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      transition: opacity 0.4s ease;
+      opacity: 0;
+    }
+    #initial-landscape.active {
+      opacity: 1;
+    }
+
+    #deck {
+      width: 100%;
+      aspect-ratio: 1005 / 824;
+      position: relative;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    #deck-img {
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: block;
+    }
+
+    .hitbox {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      /* border: 2px solid rgba(255,0,0,0.3); */
+    }
+
+    .hitbox.slot {
+      width: 12.44%;
+      height: 23.79%;
+    }
+
+    #knob-hit { width: 9%; height: 11%; cursor: pointer; border-radius: 50%; }
+    #reset-hit { width: 5%; height: 6%; cursor: pointer; border-radius: 50%; }
+
+    .card {
+      position: absolute;
+      width: 12.44%;
+      height: 23.79%;
+      transform: translate(-50%, -50%);
+      cursor: grab;
+      z-index: 10;
+      touch-action: none;
+    }
+    .card:active {
+      cursor: grabbing;
+    }
+    .card.dragging {
+      z-index: 20;
+      transition: none !important;
+    }
+    .card img {
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: block;
+      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2));
+    }
+  </style>
+</head>
+<body>
+
+  <div id="app">
+    <div id="screen">
+      <img id="initial-landscape" src="Idle state.png" class="active">
+      <img id="display-combo-normal" src="" class="screen-bg">
+      <img id="display-combo-decay" src="" class="screen-bg decay-bg">
+    </div>
+
+    <div id="deck">
+      <img id="deck-img" src="board.png" draggable="false">
+      
+      <div id="hitboxes">
+        <div id="knob-hit" class="hitbox" style="left: 74.63%; top: 84.95%;"></div>
+        <div id="reset-hit" class="hitbox" style="left: 90.65%; top: 83.01%;"></div>
+        
+        <div id="slot-a1" class="hitbox slot" style="left: 23.63%; top: 36.17%;"></div>
+        <div id="slot-a2" class="hitbox slot" style="left: 74.58%; top: 36.89%;"></div>
+        
+        <div id="slot-h1" class="hitbox slot" style="left: 10.05%; top: 82.64%;"></div>
+        <div id="slot-h2" class="hitbox slot" style="left: 24.48%; top: 82.64%;"></div>
+        <div id="slot-h3" class="hitbox slot" style="left: 39.00%; top: 82.64%;"></div>
+        <div id="slot-h4" class="hitbox slot" style="left: 53.53%; top: 82.64%;"></div>
+      </div>
+
+      <div id="cards">
+        <div id="card-settlement" class="card" data-id="settlement">
+          <img src="settlement card.png">
+        </div>
+        <div id="card-road" class="card" data-id="road">
+          <img src="road card.png">
+        </div>
+        <div id="card-mine" class="card" data-id="mine">
+          <img src="mine card.png">
+        </div>
+        <div id="card-factory" class="card" data-id="factory">
+          <img src="factory card.png">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const cardsData = [
+      { id: 'settlement', homeSlot: 'h1' },
+      { id: 'road', homeSlot: 'h2' },
+      { id: 'mine', homeSlot: 'h3' },
+      { id: 'factory', homeSlot: 'h4' }
+    ];
+
+    const combos = {
+      'factory,mine': { n: 'Factory + Mine.png', d: 'Factory + Mine_decay.png' },
+      'factory,road': { n: 'road + factory.png', d: 'road + factory_decay.png' },
+      'factory,settlement': { n: 'factory + settlement.png', d: 'factory + settlement_decay.png' },
+      'mine,road': { n: 'Mine + Road.png', d: 'Mine + Road_decay.png' },
+      'mine,settlement': { n: 'settlement + Mine.png', d: 'Settlemt + Mine_decay.png' },
+      'road,settlement': { n: 'settlement + road.png', d: 'Settlement + Road_decay.png' }
+    };
+
+    let decayActive = false;
+    let cardState = {
+      settlement: 'h1',
+      road: 'h2',
+      mine: 'h3',
+      factory: 'h4'
+    };
+
+    const deck = document.getElementById('deck');
+
+    function updateCardPositions() {
+      for (let id in cardState) {
+        const slotId = cardState[id];
+        const slotEl = document.getElementById('slot-' + slotId);
+        const cardEl = document.getElementById('card-' + id);
+        cardEl.style.left = slotEl.style.left;
+        cardEl.style.top = slotEl.style.top;
+      }
+    }
+
+    function updateScreen() {
+      let a1Card = null;
+      let a2Card = null;
+      for (let id in cardState) {
+        if (cardState[id] === 'a1') a1Card = id;
+        if (cardState[id] === 'a2') a2Card = id;
+      }
+      
+      const normalImg = document.getElementById('display-combo-normal');
+      const decayImg = document.getElementById('display-combo-decay');
+      const initialBg = document.getElementById('initial-landscape');
+      
+      if (a1Card && a2Card) {
+        const sorted = [a1Card, a2Card].sort().join(',');
+        const comboInfo = combos[sorted];
+        
+        normalImg.src = comboInfo.n;
+        decayImg.src = comboInfo.d;
+        
+        normalImg.classList.add('active');
+        initialBg.classList.remove('active');
+        
+        if (decayActive) {
+          decayImg.classList.add('active');
+        } else {
+          decayImg.classList.remove('active');
+        }
+      } else {
+        decayActive = false;
+        normalImg.classList.remove('active');
+        decayImg.classList.remove('active');
+        initialBg.classList.add('active');
+      }
+    }
+
+    function getDropSlot(clientX, clientY) {
+      const a1 = document.getElementById('slot-a1').getBoundingClientRect();
+      const a2 = document.getElementById('slot-a2').getBoundingClientRect();
+      if (clientX >= a1.left && clientX <= a1.right && clientY >= a1.top && clientY <= a1.bottom) return 'a1';
+      if (clientX >= a2.left && clientX <= a2.right && clientY >= a2.top && clientY <= a2.bottom) return 'a2';
+      return null;
+    }
+
+    cardsData.forEach(c => {
+      const el = document.getElementById('card-' + c.id);
+      el.addEventListener('pointerdown', function(e) {
+        // Only left clicks or touches
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        
+        const draggedCard = el;
+        draggedCard.classList.add('dragging');
+        
+        const rect = draggedCard.getBoundingClientRect();
+        const deckRect = deck.getBoundingClientRect();
+        
+        const clickOffsetX = e.clientX - (rect.left + rect.width / 2);
+        const clickOffsetY = e.clientY - (rect.top + rect.height / 2);
+
+        const moveHandler = (evt) => {
+          let px = (evt.clientX - clickOffsetX) - deckRect.left;
+          let py = (evt.clientY - clickOffsetY) - deckRect.top;
+          draggedCard.style.left = (px / deckRect.width * 100) + '%';
+          draggedCard.style.top = (py / deckRect.height * 100) + '%';
+        };
+        
+        const upHandler = (evt) => {
+          document.removeEventListener('pointermove', moveHandler);
+          document.removeEventListener('pointerup', upHandler);
+          document.removeEventListener('pointercancel', upHandler);
+          draggedCard.classList.remove('dragging');
+          
+          const slot = getDropSlot(evt.clientX, evt.clientY);
+          const cardId = draggedCard.dataset.id;
+          
+          if (slot) {
+            for (let id in cardState) {
+              if (cardState[id] === slot && id !== cardId) {
+                cardState[id] = cardsData.find(cd => cd.id === id).homeSlot;
+              }
+            }
+            cardState[cardId] = slot;
+          } else {
+            cardState[cardId] = cardsData.find(cd => cd.id === cardId).homeSlot;
+          }
+          
+          updateCardPositions();
+          updateScreen();
+        };
+        
+        document.addEventListener('pointermove', moveHandler);
+        document.addEventListener('pointerup', upHandler);
+        document.addEventListener('pointercancel', upHandler);
+      });
+    });
+
+    document.getElementById('knob-hit').addEventListener('click', () => {
+      let activeCount = Object.values(cardState).filter(s => s === 'a1' || s === 'a2').length;
+      if (activeCount === 2) {
+        decayActive = !decayActive;
+        updateScreen();
+      }
+    });
+
+    document.getElementById('reset-hit').addEventListener('click', () => {
+      for (let id in cardState) {
+        cardState[id] = cardsData.find(c => c.id === id).homeSlot;
+      }
+      decayActive = false;
+      updateCardPositions();
+      updateScreen();
+    });
+
+    updateCardPositions();
+    updateScreen();
+    setTimeout(() => {
+      document.querySelectorAll('.card').forEach(c => c.style.transition = 'left 0.2s ease, top 0.2s ease');
+    }, 50);
+  </script>
+</body>
+</html>
